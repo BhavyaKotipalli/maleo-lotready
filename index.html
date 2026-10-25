@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Maleo LotReady</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: navy command header carrying the four-stage stepper; inventory rail on the left; one persistent lot strip; the readiness screen is the two-column hero. Single committed light look for projection. */
+:root{
+  color-scheme:light;
+  --navy:#0B1220; --navy-2:#151f33; --navy-line:#27344d; --nav-fg:#cbd5e4; --nav-dim:#8795ad;
+  --bg:#F6F8FA; --surface:#ffffff; --sunk:#eef2f5; --ink:#0B1220; --muted:#5a6779; --line:#dde4ea;
+  --teal:#14B8A6; --teal-deep:#0c6f66; --teal-soft:#d8f5f1;
+  --amber:#a44a05; --amber-bg:#fef0c7; --amber-mid:#f2a20c;
+  --red:#b3201c; --red-bg:#fde3e1; --red-mid:#e5483f;
+  --sim:#5a44c4; --sim-bg:#ece9fb;
+  --r:10px; --shadow:0 1px 2px rgba(11,18,32,.05),0 6px 18px rgba(11,18,32,.06);
+  --display:"Archivo","IBM Plex Sans",system-ui,sans-serif;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+h1,h2,h3,h4,p,figure{margin:0}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.2;letter-spacing:-.01em}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.id{font-family:var(--mono);font-size:.92em;letter-spacing:-.01em}
+.lbl{display:block;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.note{font-size:13px;color:var(--muted)}
+
+/* header */
+.top{background:var(--navy);color:var(--nav-fg);padding:14px 24px 0;display:flex;flex-direction:column;gap:12px}
+.top-row{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.brand b{font-family:var(--display);font-size:24px;font-weight:800;color:#fff;letter-spacing:-.02em;display:block;line-height:1.1}
+.brand b i{font-style:normal;color:var(--teal)}
+.brand span{font-size:12px;color:var(--nav-dim)}
+.badge{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#fcd98a;border:1px solid #6b5420;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.grow{flex:1}
+.steps{display:flex;list-style:none;margin:0;padding:0;overflow-x:auto}
+.steps li{display:flex;align-items:center;flex:1;min-width:max-content}
+.steps li:not(:last-child)::after{content:"";flex:1;min-width:18px;height:2px;background:var(--navy-line);margin:0 4px;transition:background .25s}
+.steps li.done:not(:last-child)::after{background:var(--teal)}
+.steps button{display:flex;align-items:center;gap:9px;background:none;border:0;border-bottom:3px solid transparent;color:var(--nav-dim);padding:8px 6px 11px;font-weight:500;transition:color .2s,border-color .2s}
+.steps button:hover{color:#fff}
+.steps .dot{width:24px;height:24px;border-radius:50%;border:2px solid var(--navy-line);display:grid;place-items:center;font-family:var(--mono);font-size:12px;transition:background .25s,border-color .25s,color .25s}
+.steps .done .dot{background:var(--teal);border-color:var(--teal);color:var(--navy)}
+.steps [aria-current="step"]{color:#fff;border-bottom-color:var(--teal)}
+.steps [aria-current="step"] .dot{border-color:var(--teal);color:#fff}
+.steps .done [aria-current="step"] .dot{color:var(--navy)}
+.ck{width:13px;height:13px;display:block}
+
+.guide{background:var(--teal-soft);border-bottom:1px solid #b5e8e1;padding:8px 24px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:14px}
+.guide b{font-weight:600}
+.pips{display:flex;gap:4px}
+.pips i{width:16px;height:5px;border-radius:3px;background:#a9d9d3;transition:background .25s}
+.pips i.on{background:var(--teal-deep)}
+
+/* shell */
+.shell{display:grid;grid-template-columns:264px minmax(0,1fr);align-items:start}
+.inv{padding:20px 0 20px 24px;display:flex;flex-direction:column;gap:10px}
+.inv-list{display:flex;flex-direction:column;gap:8px}
+.lotcard{display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:center;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px;transition:border-color .2s,box-shadow .2s}
+.lotcard:hover{border-color:#b9c4cf}
+.lotcard[aria-pressed="true"]{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
+.lotcard strong{display:block;font-size:13.5px;font-weight:600;line-height:1.3;margin-bottom:3px}
+.lotcard .id{font-size:12px;color:var(--muted)}
+.work{min-width:0;padding:20px 24px 40px;display:flex;flex-direction:column;gap:18px;max-width:1180px}
+.work.enter{animation:rise .24s ease-out}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+
+.thumb{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--sunk);line-height:0}
+.thumb svg{display:block;width:100%;height:auto}
+.thumb figcaption{position:absolute;left:0;right:0;bottom:0;background:rgba(11,18,32,.74);color:#fff;font-size:9.5px;line-height:1.5;letter-spacing:.05em;text-transform:uppercase;text-align:center;padding:1px 2px}
+.thumb.lg figcaption{font-size:11px;padding:3px}
+.thumb.xs{width:54px;flex:none}
+
+.strip{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:10px 14px;display:flex;flex-wrap:wrap;gap:10px 26px;align-items:center}
+.strip div{min-width:0}
+.strip .v{font-weight:600;font-size:14.5px}
+
+.head{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end;justify-content:space-between}
+.head h1{font-size:30px;font-weight:800}
+.head p{color:var(--muted);max-width:60ch;margin-top:4px;font-size:16px}
+.eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--teal-deep)}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel h2{font-size:17px;font-weight:700}
+.cols{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.kv{display:grid;grid-template-columns:minmax(96px,max-content) minmax(0,1fr);gap:6px 14px;margin:0;font-size:14px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;overflow-wrap:anywhere}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;font-weight:500;transition:border-color .15s,background .15s,transform .15s}
+.btn:hover{border-color:var(--teal)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--teal);border-color:var(--teal);color:var(--navy);font-weight:600}
+.btn.primary:hover{background:#2cc9b8}
+.btn.big{padding:12px 18px;font-size:16px;width:100%}
+.btn.small{padding:5px 11px;font-size:13px}
+.btn.ghost{background:transparent;border-color:var(--navy-line);color:var(--nav-fg)}
+.btn.ghost:hover{border-color:var(--teal);color:#fff}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);min-width:0}
+.field input,.field select,.field textarea{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 10px;font-size:14px;width:100%;transition:border-color .15s}
+.field input:hover,.field select:hover,.field textarea:hover{border-color:#b9c4cf}
+.field textarea{min-height:64px;resize:vertical}
+.inline{display:grid;grid-template-columns:minmax(0,1fr) 84px;gap:8px}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--ink)}
+
+.pill{display:inline-flex;gap:5px;align-items:center;border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.pill.pass{color:var(--teal-deep);background:var(--teal-soft)}
+.pill.miss{color:var(--amber);background:var(--amber-bg)}
+.pill.fail{color:var(--red);background:var(--red-bg)}
+.pill.sim{color:var(--sim);background:var(--sim-bg)}
+.pill.neutral{color:var(--muted);background:var(--sunk)}
+
+/* readiness hero */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+.left{display:flex;flex-direction:column;gap:14px;min-width:0}
+.right{position:sticky;top:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.buyers{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.buyer{text-align:left;background:var(--surface);border:2px solid var(--line);border-radius:var(--r);padding:11px 12px;transition:border-color .2s,box-shadow .2s}
+.buyer:hover{border-color:#b9c4cf}
+.buyer strong{display:block;font-size:14.5px}
+.buyer small{color:var(--muted);font-size:12.5px}
+.buyer[aria-pressed="true"]{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
+.buyer.flash{animation:ring .3s ease-out}
+@keyframes ring{from{box-shadow:0 0 0 9px rgba(20,184,166,.28)}}
+
+.summary{background:var(--navy);color:#fff;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:14px;box-shadow:0 10px 30px rgba(11,18,32,.22)}
+.summary .state{font-family:var(--display);font-size:22px;font-weight:700;display:flex;gap:9px;align-items:center}
+.summary .state i{width:11px;height:11px;border-radius:50%;flex:none}
+.summary.pass .state i{background:var(--teal)} .summary.miss .state i{background:var(--amber-mid)} .summary.fail .state i{background:var(--red-mid)}
+.summary .count{font-family:var(--display);font-size:38px;font-weight:800;line-height:1;letter-spacing:-.02em}
+.summary .count small{display:block;font-family:var(--sans);font-size:15px;font-weight:500;color:var(--nav-fg);letter-spacing:0;margin-top:6px}
+.segs{display:flex;gap:4px}
+.segs i{flex:1;height:10px;border-radius:3px;background:var(--navy-line);transition:background .28s}
+.segs i.pass{background:var(--teal)} .segs i.miss{background:var(--amber-mid)} .segs i.fail{background:var(--red-mid)}
+.segs i.just-pass{animation:fill .3s ease-out;transform-origin:left}
+@keyframes fill{from{transform:scaleX(.15);opacity:.4}}
+.summary .note{color:var(--nav-dim)}
+.summary .lbl{color:var(--nav-dim)}
+
+.req{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:9px;box-shadow:var(--shadow);transition:border-color .25s}
+.req-top{display:flex;gap:10px;align-items:center}
+.req-top h3{font-size:15.5px;font-weight:700;flex:1;min-width:0}
+.req .ico{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;flex:none;font-weight:700;font-size:13px}
+.req.pass .ico{background:var(--teal);color:var(--navy)} .req.miss .ico{background:var(--amber-bg);color:var(--amber)} .req.fail .ico{background:var(--red-bg);color:var(--red)}
+.req .short{font-size:14.5px}
+.req .meta{display:grid;gap:8px 18px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));font-size:13.5px}
+.req .meta div{min-width:0;overflow-wrap:anywhere}
+.req.changed{animation:flash .55s ease-out}
+.req.just-pass{animation:flashok .55s ease-out}
+@keyframes flash{from{background:var(--amber-bg);border-color:var(--amber-mid)}}
+@keyframes flashok{from{background:var(--teal-soft);border-color:var(--teal)}}
+.just-pass .ck path{stroke-dasharray:16;animation:draw .3s ease-out}
+@keyframes draw{from{stroke-dashoffset:16}}
+details summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--teal-deep);width:max-content;border-radius:4px}
+details .kv{margin-top:8px;font-size:13.5px}
+
+.ev{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:13.5px;min-width:0;background:var(--surface)}
+.ev.off{border-style:dashed;background:var(--bg)}
+.ev header{display:flex;flex-wrap:wrap;gap:6px;justify-content:space-between;align-items:center}
+.evgrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.upload{border:1px dashed #b9c4cf;border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.upload img{max-width:240px;border-radius:6px;border:1px solid var(--line)}
+
+/* passport document */
+.doc{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.doc-head{background:var(--navy);color:#fff;padding:20px 24px;display:grid;grid-template-columns:150px minmax(0,1fr);gap:18px;align-items:center}
+.doc-head h1{font-size:24px;font-weight:800}
+.doc-head .lbl{color:var(--nav-dim)}
+.doc-head .facts{display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:10px;font-size:14px}
+.doc-sec{padding:18px 24px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.doc-sec h2{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:var(--sans)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.scroll{overflow-x:auto}
+ul.plain{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:14px}
+.timeline{list-style:none;margin:0;padding:0 0 0 14px;border-left:2px solid var(--line);display:flex;flex-direction:column;gap:9px;font-size:13.5px;max-height:230px;overflow:auto}
+.timeline li{position:relative}
+.timeline li::before{content:"";position:absolute;left:-19px;top:6px;width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 2px var(--surface)}
+.timeline time{display:block;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+pre.json{font-family:var(--mono);font-size:12px;background:var(--navy);color:#cfe9e5;border-radius:8px;padding:14px;max-height:320px;overflow:auto;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* marketplace card */
+.market{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+.market .thumb{border:0;border-radius:0;height:100%}
+.market .thumb svg{height:100%;min-height:210px}
+.market .info{padding:20px 22px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.market h2{font-size:22px;font-weight:800}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips span{background:var(--sunk);border-radius:6px;padding:4px 9px;font-size:13px}
+.market.pop{animation:pop .3s ease-out}
+@keyframes pop{from{transform:scale(.985);box-shadow:0 0 0 6px rgba(20,184,166,.35)}}
+.confirm{display:flex;gap:10px;align-items:center;background:var(--teal-soft);border:1px solid #a9e4dc;border-radius:var(--r);padding:12px 14px;font-weight:500}
+.confirm .ico{width:28px;height:28px;border-radius:50%;background:var(--teal);color:var(--navy);display:grid;place-items:center;flex:none}
+.confirm.pop .ck path{stroke-dasharray:16;animation:draw .3s ease-out}
+
+/* presentation */
+.present{position:fixed;inset:0;z-index:50;background:var(--navy);color:#fff;display:flex;flex-direction:column;overflow-y:auto;padding:calc(18px + env(safe-area-inset-top,0px)) 32px calc(18px + env(safe-area-inset-bottom,0px))}
+.present .p-top,.present .p-bot{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+.present .tabs{display:flex;gap:6px}
+.present .tabs button{width:34px;height:6px;border-radius:3px;border:0;background:var(--navy-line);padding:0;transition:background .2s}
+.present .tabs button[aria-pressed="true"]{background:var(--teal)}
+.slide{flex:1;display:flex;flex-direction:column;justify-content:center;gap:26px;max-width:1120px;width:100%;margin:0 auto;padding-block:24px;animation:rise .26s ease-out}
+.slide .eyebrow{color:var(--teal);font-size:13px}
+.slide h2{font-size:clamp(30px,4.6vw,58px);font-weight:800;letter-spacing:-.025em;line-height:1.08;max-width:20ch}
+.trio{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.trio>div{border:1px solid var(--navy-line);border-radius:12px;padding:18px;background:var(--navy-2);min-width:0}
+.trio b{display:block;font-family:var(--display);font-size:21px;margin-bottom:4px}
+.trio span{color:var(--nav-fg);font-size:15.5px}
+.trio .me{border-color:var(--teal);box-shadow:0 0 0 3px rgba(20,184,166,.18)}
+.chain{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:10px;align-items:stretch}
+.chain .arrow{align-self:center;color:var(--teal);font-size:26px}
+.chain>div:not(.arrow){border:1px solid var(--navy-line);border-radius:12px;padding:18px;background:var(--navy-2);min-width:0}
+.chain>div.me{border-color:var(--teal);box-shadow:0 0 0 3px rgba(20,184,166,.18)}
+.chain b{display:block;font-family:var(--display);font-size:23px}
+.chain span{color:var(--nav-fg);font-size:15px}
+.rail-id{font-family:var(--mono);font-size:14px;color:var(--teal);border:1px dashed var(--navy-line);border-radius:8px;padding:8px 12px;text-align:center}
+.duo{display:grid;grid-template-columns:1fr 170px 1fr;gap:16px;align-items:center}
+.duo .side{border:1px solid var(--navy-line);border-radius:12px;padding:18px;background:var(--navy-2);min-width:0}
+.duo .side b{display:block;font-family:var(--display);font-size:20px}
+.duo .side .big{font-family:var(--display);font-size:34px;font-weight:800;margin:8px 0 2px}
+.duo ul{margin:8px 0 0;padding-left:18px;color:var(--nav-fg);font-size:14.5px}
+.duo .mid{text-align:center}
+.duo .thumb{border-color:var(--navy-line)}
+.present details{border-top:1px solid var(--navy-line);padding-top:10px;max-width:80ch}
+.present details summary{color:var(--teal)}
+.present details p,.present details li{color:var(--nav-fg);font-size:14.5px;margin-top:6px}
+.present details ul{margin:6px 0;padding-left:18px}
+.present .note{color:var(--nav-dim)}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--navy);color:#fff;border:1px solid var(--navy-line);border-radius:8px;padding:10px 16px;font-size:14px;max-width:calc(100% - 32px);z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+
+@media (max-width:1040px){ .hero{grid-template-columns:minmax(0,1fr)} .right{position:static;order:-1} }
+@media (max-width:860px){
+  .top{padding:12px 16px 0} .guide{padding:8px 16px}
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .inv{padding:16px 16px 0}
+  .inv-list{flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  .lotcard{min-width:230px}
+  .work{padding:16px 16px 32px}
+  .head h1{font-size:24px}
+  .doc-head{grid-template-columns:minmax(0,1fr)} .doc-head .thumb{max-width:170px}
+  .doc-sec,.doc-head{padding-inline:16px}
+  .market{grid-template-columns:minmax(0,1fr)}
+  .present{padding-inline:16px}
+  .chain{grid-template-columns:minmax(0,1fr)} .chain .arrow{transform:rotate(90deg);justify-self:center}
+  .duo{grid-template-columns:minmax(0,1fr)} .duo .mid .thumb{max-width:170px;margin:0 auto}
+}
+@media (prefers-reduced-motion:reduce){ *,*::before,*::after{animation:none!important;transition:none!important} }
+</style>
+
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+"use strict";
+const STORE='lotready.v3', AL='LR-AL-0417', CU='LR-CU-0388', MX='LR-MX-0522';
+const KG={kg:1,t:1000};
+const FAMILIES=['Aluminium','Copper','Mixed metals','Steel'];
+const hasDom=typeof document!=='undefined';
+const now=()=>new Date().toISOString();
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtT=iso=>{try{return new Date(iso).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'})}catch(e){return iso}};
+const fmtKg=n=>Number(n).toLocaleString('en-GB',{maximumFractionDigits:1})+' kg';
+const toKg=q=>(q&&q.value>0&&KG[q.unit])?q.value*KG[q.unit]:null;
+const qtyText=q=>toKg(q)==null?'Not recorded':`${Number(q.value).toLocaleString('en-GB')} ${q.unit}`+(q.unit==='t'?` (= ${fmtKg(toKg(q))})`:'');
+const alloyOf=g=>{const m=String(g||'').match(/\d{4}/);return m?m[0]:''};
+
+const SAMPLING={
+  unspecified:{label:'Not specified by buyer'},
+  spot3:{label:'Fictional demo policy: 3+ spot readings on 3+ pieces',minReadings:3,minPieces:3,layers:false,text:'At least 3 spot readings on at least 3 pieces, accepted for preliminary quote review only (fictional demo policy)'},
+  layers:{label:'Stricter example: 10+ pieces across all layers',minReadings:10,minPieces:10,layers:true,text:'Readings on at least 10 pieces drawn from every layer of the lot (fictional stricter example)'}
+};
+let S, photos={}, toastTimer=null;
+const ui={open:{},prev:{},prevKey:null,flashBuyer:false,flashPublish:false,ptr:false,pending:false};
+
+function buyers(){return {
+  general:{id:'general',name:'Northfield General Recycling',kind:'General aluminium recycler',family:'Aluminium',alloy:null,tol:2},
+  alloy:{id:'alloy',name:'Castline Alloys',kind:'Alloy-specific buyer',family:'Aluminium',alloy:S.alloySpec,sampling:S.sampling,tol:2},
+  copper:{id:'copper',name:'Redwire Copper Recovery',kind:'General copper recycler',family:'Copper',alloy:null,tol:2}
+}}
+const buyerOf=lot=>buyers()[lot.buyerId];
+
+function seed(){
+  S={view:'intake',active:AL,alloySpec:'6061',sampling:'spot3',slide:0,seq:1,showJson:false,present:false,guide:true,draft:{name:'',note:''},m:{},lots:{}};
+  const ev=(o)=>Object.assign({source:'Node demo record',status:'unreviewed',at:'2026-10-05T08:30:00.000Z'},o);
+  S.lots[AL]={id:AL,title:'Aluminium extrusion offcuts',location:'Yard A, Bay 3 (fictional)',buyerId:'general',imported:false,
+    ai:{family:'Aluminium'},declared:{family:'Aluminium',grade:'6061'},qty:{value:1850,unit:'kg'},
+    origin:'Window-frame fabrication offcuts from a single fabricator (fictional)',
+    condition:'Clean offcuts, loose in a stillage. Light surface oxidation. No attachments seen on the pieces inspected.',conditionReviewed:false,
+    evidence:[ev({id:'EV-AL-01',lotId:AL,type:'photo',label:'Intake photo set, 3 images',scope:'Top layer of the stillage only',detail:'Visual record only. Does not establish alloy, purity or contamination.'})],
+    reviews:{},events:[],published:null};
+  S.lots[CU]={id:CU,title:'Stripped copper wire coils',location:'Yard A, Bay 7 (fictional)',buyerId:'copper',imported:false,
+    ai:{family:'Copper'},declared:{family:'Copper',grade:'Bare bright wire (seller term)'},qty:{value:640,unit:'kg'},
+    origin:'Electrical contractor strip-out, processed on the yard cable line (fictional)',
+    condition:'Stripped, uncoated wire in 4 coiled bales. No insulation seen in the bales opened.',conditionReviewed:true,
+    evidence:[
+      ev({id:'EV-CU-01',lotId:CU,type:'weight',label:'Weighbridge ticket WB-2291 (fictional)',source:'Yard weighbridge',scope:'All 4 bales, net weight',kg:642,status:'accepted',detail:'Net 642 kg.'}),
+      ev({id:'EV-CU-02',lotId:CU,type:'material',label:'Operator inspection note',source:'Yard operator',scope:'2 of 4 bales opened and inspected',family:'Copper',status:'accepted',detail:'Inspected bales contained stripped copper wire only.'})],
+    reviews:{},events:[],published:null};
+  S.lots[MX]={id:MX,title:'Mixed demolition metal pieces',location:'Yard A, Bay 12 (fictional)',buyerId:'general',imported:false,
+    ai:{family:'Mixed metals'},declared:{family:'Aluminium',grade:''},qty:{value:3.1,unit:'t'},
+    origin:'',condition:'Sheet and profile from a strip-out. Fixings still attached on some pieces.',conditionReviewed:false,
+    evidence:[
+      ev({id:'EV-MX-01',lotId:MX,type:'weight',label:'Weighbridge ticket WB-2304 (fictional)',source:'Yard weighbridge',scope:'Whole skip, net weight',kg:2400,status:'accepted',detail:'Net 2,400 kg.'}),
+      ev({id:'EV-MX-02',lotId:MX,type:'material',label:'Operator inspection note',source:'Yard operator',scope:'5 pieces pulled from the top of the skip',family:'Mixed metals',status:'accepted',detail:'Ferrous brackets and fixings attached on 2 of the 5 pieces checked.'}),
+      ev({id:'EV-CU-07',lotId:CU,type:'weight',label:'Weighbridge ticket WB-2291 (fictional)',source:'Yard weighbridge',scope:'Lot '+CU,kg:3100,status:'accepted',detail:'Filed against this record, but the ticket names a different lot.'})],
+    reviews:{},events:[],published:null};
+  const cu=S.lots[CU];
+  cu.reviews.copper={name:'D. Okafor (fictional reviewer)',note:'Ticket and inspection note checked against the bales on the floor.',at:'2026-10-05T09:12:00.000Z',hash:hashOf(cu,buyers().copper)};
+}
+
+function hashOf(lot,b){
+  return JSON.stringify([lot.declared,lot.origin,lot.condition,lot.conditionReviewed,lot.qty,
+    lot.evidence.map(e=>[e.id,e.lotId,e.type,e.status,e.kg||0,e.alloy||'',e.family||'']),b.id,b.family,b.alloy,b.sampling||'',b.tol]);
+}
+
+/* Deterministic requirement rules. Unknown never passes; a contradiction is Fail, an absence is Missing. */
+function evaluate(lot,b){
+  const mine=lot.evidence.filter(e=>e.lotId===lot.id&&e.status!=='rejected');
+  const foreign=lot.evidence.filter(e=>e.lotId!==lot.id);
+  const acc=mine.filter(e=>e.status==='accepted');
+  const tag=e=>`${e.id} · ${e.label}`;
+  const out=[];
+
+  { // material category
+    const contra=acc.find(e=>e.family&&e.family!==lot.declared.family);
+    const r={key:'category',label:'Material category',src:'Seller declaration',expected:`${b.family} lot`,
+      claim:lot.declared.family?`Seller declares: ${lot.declared.family}`:'No family declared',
+      evidence:acc.filter(e=>e.family).map(tag)};
+    if(!lot.declared.family){r.status='miss';r.reason='No material family has been declared, so the category is unknown.';r.action={label:'Edit declaration',act:'nav',arg:'intake'}}
+    else if(lot.declared.family!==b.family){r.status='fail';r.reason=`Declared ${lot.declared.family} is outside this buyer's ${b.family} category.`;r.todo='Choose a buyer for this material, or correct the declaration in Node intake.'}
+    else if(contra){r.status='fail';r.reason=`Reviewed evidence ${contra.id} records "${contra.family}", which contradicts the seller declaration of ${lot.declared.family}.`;r.action={label:'Correct the declaration',act:'nav',arg:'intake'}}
+    else if(lot.ai.family!==lot.declared.family){r.status='miss';r.reason=`The simulated AI suggestion (${lot.ai.family}) disagrees with the declaration and no reviewed evidence settles it.`;r.action={label:'Add material evidence',act:'addMaterial'}}
+    else{r.status='pass';r.reason='The declaration matches the buyer category and no reviewed evidence contradicts it. This is a category check, not a purity claim.'}
+    out.push(r);
+  }
+  { // weight
+    const tickets=mine.filter(e=>e.type==='weight'), ok=tickets.filter(e=>e.status==='accepted');
+    const fw=foreign.filter(e=>e.type==='weight'), dk=toKg(lot.qty);
+    const r={key:'weight',label:'Measured weight evidence',src:'No weight ticket for this lot',expected:`Reviewed weight ticket for this lot, within ${b.tol}% of the declared quantity`,
+      claim:`Declared quantity: ${qtyText(lot.qty)}`,evidence:tickets.map(e=>`${tag(e)} · ${fmtKg(e.kg)}`)};
+    const skipped=fw.length?` ${fw.map(e=>e.id).join(', ')} is attached to lot ${fw[0].lotId} and does not count for this lot.`:'';
+    if(dk==null){r.status='miss';r.reason='No declared quantity with a unit, so there is nothing to compare a ticket against.';r.action={label:'Enter quantity',act:'nav',arg:'intake'}}
+    else if(!tickets.length){r.status='miss';r.reason='No weight evidence is attached to this lot.'+skipped;r.action={label:'Add weight evidence',act:'addWeight'}}
+    else if(!ok.length){r.status='miss';r.reason='A weight ticket is attached but has not been reviewed yet.'+skipped;r.action={label:'Review weight ticket',act:'accept',arg:tickets[0].id}}
+    else{
+      const bad=ok.find(e=>Math.abs(e.kg-dk)/dk*100>b.tol);
+      if(bad){const d=Math.abs(bad.kg-dk)/dk*100;r.status='fail';r.reason=`Ticket ${bad.id} reads ${fmtKg(bad.kg)} against a declared ${fmtKg(dk)}. The ${d.toFixed(1)}% difference exceeds the ${b.tol}% tolerance.`+skipped;r.action={label:'Correct quantity or re-weigh',act:'nav',arg:'intake'}}
+      else{r.status='pass';r.reason=`Reviewed ticket ${ok[ok.length-1].id} (${fmtKg(ok[ok.length-1].kg)}) is within ${b.tol}% of the declared ${fmtKg(dk)}.`+skipped}
+    }
+    out.push(r);
+  }
+  { // origin
+    const r={key:'origin',label:'Origin information',src:'Seller statement',expected:'Origin recorded',claim:lot.origin?lot.origin:'Not recorded',evidence:[]};
+    if(!lot.origin.trim()){r.status='miss';r.reason='Origin is blank.';r.action={label:'Enter origin',act:'nav',arg:'intake'}}
+    else{r.status='pass';r.reason='Origin is recorded as a seller statement. It has not been independently verified.'}
+    out.push(r);
+  }
+  { // condition review
+    const r={key:'condition',label:'Condition review',src:'Operator condition notes',expected:'Condition notes present and reviewed by the operator',
+      claim:lot.condition?lot.condition:'No condition notes',evidence:mine.filter(e=>e.type==='photo').map(tag)};
+    if(!lot.condition.trim()){r.status='miss';r.reason=lot.conditionReviewed?'The review box is ticked, but there are no condition notes to review. A tick cannot stand in for the notes.':'No condition notes recorded.';r.action={label:'Enter condition notes',act:'nav',arg:'intake'}}
+    else if(!lot.conditionReviewed){r.status='miss';r.reason='Condition notes exist but the operator has not confirmed them.';r.action={label:'Confirm condition notes',act:'condOk'}}
+    else{r.status='pass';r.reason='Condition notes confirmed by the operator. Based on the pieces inspected.'}
+    out.push(r);
+  }
+  if(b.alloy){ // alloy evidence
+    const mat=mine.filter(e=>e.type==='material'&&e.alloy), ok=mat.filter(e=>e.status==='accepted'), da=alloyOf(lot.declared.grade);
+    const r={key:'alloy',label:`Alloy evidence reviewed (${b.alloy})`,src:'Seller declaration only',expected:`Declared ${b.alloy}, supported by operator-reviewed material evidence for this lot`,
+      claim:lot.declared.grade?`Seller declares: ${lot.declared.grade}`:'No grade declared',evidence:mat.map(e=>`${tag(e)} · reads ${e.alloy}`)};
+    const badEv=ok.find(e=>e.alloy!==b.alloy);
+    if(!lot.declared.grade.trim()){r.status='miss';r.reason='No alloy grade is declared, so it is unknown whether the lot meets this specification.';r.action={label:'Enter declared grade',act:'nav',arg:'intake'}}
+    else if(da!==b.alloy){r.status='fail';r.reason=`The declared grade (${lot.declared.grade}) does not match the required ${b.alloy}.`;r.todo='Offer this lot to a different buyer, or correct the declaration.'}
+    else if(badEv){r.status='fail';r.reason=`Reviewed evidence ${badEv.id} reads ${badEv.alloy}, which contradicts the required ${b.alloy}.`;r.action={label:'Re-declare the lot',act:'nav',arg:'intake'}}
+    else if(!mat.length){r.status='miss';r.reason=`The seller declares ${b.alloy}, but no material evidence for this lot supports it. A declaration or a photo is not alloy evidence.`;r.action={label:'Add material evidence',act:'addMaterial'}}
+    else if(!ok.length){r.status='miss';r.reason='Material evidence is attached, but an operator has not reviewed its scope.';r.action={label:'Review sampling scope',act:'accept',arg:mat[0].id}}
+    else{r.status='pass';r.reason=`An operator has reviewed readings consistent with ${b.alloy} for the sampled pieces (${ok[0].scope}). Whether that scope is enough for this buyer is checked separately.`}
+    out.push(r);
+    // scope sufficiency: operator review of a record is not the same as coverage the buyer accepts
+    const P=SAMPLING[b.sampling]||SAMPLING.unspecified, good=ok.filter(e=>e.alloy===b.alloy);
+    const pieces=good.reduce((n,e)=>n+(e.pieces||0),0), reads=good.reduce((n,e)=>n+(e.readings||0),0), layers=good.some(e=>e.allLayers);
+    const M='Missing: buyer sampling requirement or adequate coverage. ';
+    const q={key:'scope',label:'Evidence scope sufficient for this buyer',src:'No reviewed alloy readings',expected:P.minPieces?P.text:'Buyer has not stated a sampling requirement',
+      claim:good.length?`${reads} reviewed reading(s) on ${pieces} piece(s), ${layers?'all layers':'top layer only'}`:'No reviewed alloy readings',evidence:good.map(tag)};
+    if(!P.minPieces){q.status='miss';q.reason=M+'This buyer has not said what sampling it accepts, so no set of readings can be judged sufficient.';q.action={label:'Set buyer sampling requirement',act:'gotoSamp'}}
+    else if(!good.length){q.status='miss';q.reason=M+'There are no reviewed alloy readings to compare with the buyer\'s sampling requirement.';q.todo='Add material evidence and review its scope first.'}
+    else if(pieces<P.minPieces||reads<P.minReadings||(P.layers&&!layers)){q.status='miss';q.reason=M+`Reviewed evidence covers ${reads} reading(s) on ${pieces} piece(s) from ${layers?'all layers':'the top layer only'}, which is less than this buyer requires.`;q.todo='Obtain wider sampling, or offer the lot to a buyer whose policy accepts this scope.'}
+    else{q.status='pass';q.reason='The reviewed readings meet this fictional buyer policy, which accepts this sampling scope for preliminary quote review only. This is not whole-lot certification and not an industry standard.'}
+    out.push(q);
+  }
+  { // operator review
+    const rv=lot.reviews[b.id];
+    const r={key:'review',label:'Operator review',src:'No review on record',expected:'Named reviewer and note, recorded against the current data for this buyer',
+      claim:rv?`${rv.name}, ${fmtT(rv.at)}`:'No review recorded',evidence:rv?[`${rv.name}: "${rv.note}"`]:[]};
+    if(!rv){r.status='miss';r.reason='No review has been recorded for this buyer profile.';r.action={label:'Record operator review',act:'gotoReview'}}
+    else if(rv.hash!==hashOf(lot,b)){r.status='miss';r.reason='The recorded review is stale. Lot data, evidence or the buyer requirements changed after it was signed.';r.action={label:'Review again',act:'gotoReview'}}
+    else{r.status='pass';r.reason='Review is current. It records that a person looked; it does not override any other requirement.'}
+    out.push(r);
+  }
+  return out;
+}
+function overall(rs){
+  const n={pass:0,miss:0,fail:0};rs.forEach(r=>n[r.status]++);
+  const s=n.fail?'fail':n.miss?'miss':'pass';
+  return {s,n,text:{fail:'Requirement mismatch',miss:'Missing evidence',pass:'Ready for buyer review'}[s]};
+}
+const isReady=(lot,b)=>overall(evaluate(lot,b)).s==='pass';
+function pubState(lot){
+  if(!lot.published) return 'none';
+  const b=buyers()[lot.published.buyerId];
+  return (lot.published.hash===hashOf(lot,b)&&isReady(lot,b))?'live':'withdrawn';
+}
+function limitations(lot){
+  const l=['"Ready" means this buyer\'s illustrative checklist is satisfied. It is not certified purity and not a guarantee that the buyer will accept the lot.',
+    'Origin and condition are seller or operator statements and have not been independently verified.',
+    'Photos are a visual record. They do not establish alloy, purity, heat treatment or contamination by mass.',
+    'The AI suggestion is a simulated inference. No model ran on this record.'];
+  if(lot.evidence.some(e=>e.type==='material'&&e.status==='accepted'&&e.lotId===lot.id)) l.push('Material evidence covers only the pieces stated in its scope. It does not establish the composition of the whole lot. A buyer sampling policy that accepts it does so for preliminary quote review only.');
+  l.push('The event history is a local prototype log, not tamper-proof provenance.','All lots, buyers, people and tickets here are synthetic demo data.');
+  return l;
+}
+function passport(lot){
+  const b=buyerOf(lot), rs=evaluate(lot,b), o=overall(rs);
+  return {schema:'lotready.passport.demo/v0',notice:'Pilot prototype. Synthetic demo data. Not a certificate.',exportedAt:now(),
+    lot:{id:lot.id,title:lot.title,location:lot.location},
+    claims:[{claim:'Material family',value:lot.declared.family,source:'Seller declaration'},
+      {claim:'Material family suggestion',value:lot.ai.family,source:'Simulated inference (no model ran)'},
+      {claim:'Grade / alloy',value:lot.declared.grade||null,source:'Seller declaration'}],
+    quantity:{value:lot.qty.value,unit:lot.qty.unit,kilograms:toKg(lot.qty),source:'Seller declaration'},
+    origin:lot.origin||null,condition:{notes:lot.condition||null,operatorReviewed:lot.conditionReviewed},
+    evidence:lot.evidence.map(e=>({id:e.id,lotId:e.lotId,countsForThisLot:e.lotId===lot.id,type:e.type,label:e.label,source:e.source,scope:e.scope,reviewStatus:e.status,measuredKg:e.kg||null,reading:e.alloy||e.family||null,sample:!!e.sample})),
+    buyerProfile:{name:b.name+' (fictional)',kind:b.kind,category:b.family,requiredAlloy:b.alloy,samplingRequirement:b.alloy?(SAMPLING[b.sampling]||SAMPLING.unspecified).label:null,samplingNote:b.alloy?'Fictional policy. Preliminary quote review only; not whole-lot certification or an industry standard':null,weightTolerancePct:b.tol,note:'Illustrative buyer policy, not an industry standard'},
+    requirementChecks:rs.map(r=>({requirement:r.label,expected:r.expected,current:r.claim,supportingEvidence:r.evidence,result:{pass:'Pass',miss:'Missing',fail:'Fail'}[r.status],reason:r.reason})),
+    checklistCompletion:`${o.n.pass} of ${rs.length} requirements satisfied (checklist completion only)`,
+    overallStatus:o.text,review:lot.reviews[b.id]?{reviewer:lot.reviews[b.id].name,note:lot.reviews[b.id].note,at:lot.reviews[b.id].at,current:lot.reviews[b.id].hash===hashOf(lot,b)}:null,
+    listing:{state:pubState(lot),exchange:'Local demo exchange only'},limitations:limitations(lot),
+    eventLog:{note:'Local prototype log, not tamper-proof provenance',events:lot.events}};
+}
+
+/* ---------- actions ---------- */
+const L=()=>S.lots[S.active];
+const log=(lot,text)=>lot.events.unshift({at:now(),text});
+function save(){try{localStorage.setItem(STORE,JSON.stringify(S))}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem(STORE));if(d&&d.lots&&d.lots[AL]&&d.m&&d.sampling){S=d;return true}}catch(e){}return false}
+function toast(msg){
+  if(!hasDom) return;
+  const t=document.getElementById('toast');t.textContent=msg;t.hidden=false;
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.hidden=true},3400);
+}
+function act(name,arg){
+  const lot=L(), b=buyerOf(lot);let after=null;
+  switch(name){
+    case 'nav': S.view=arg; after='top'; break;
+    case 'lot': S.active=arg;S.showJson=false;break;
+    case 'import':
+      if(lot.imported){toast('This record is already imported.');break}
+      lot.imported=true;log(lot,`Node demo record imported as lot ${lot.id} (simulated import)`);toast(`Imported ${lot.id} from the simulated Node record.`);break;
+    case 'buyer': if(lot.buyerId===arg)break;lot.buyerId=arg;ui.flashBuyer=true;log(lot,`Buyer profile set to ${buyerOf(lot).name}; readiness recomputed`);toast(`Checking against ${buyerOf(lot).name}.`);break;
+    case 'addWeight':{
+      const kg=toKg(lot.qty)||1000,id=`EV-${lot.id.split('-')[1]}-S${S.seq++}`;
+      lot.evidence.push({id,lotId:lot.id,type:'weight',label:'SAMPLE weighbridge ticket (fictional)',source:'Demo sample, added by operator',scope:'Whole lot, net weight',kg,status:'unreviewed',sample:true,at:now(),detail:`Net ${fmtKg(kg)}. Sample record for demonstration.`});
+      log(lot,`Sample weight evidence ${id} added (awaiting review)`);toast(`${id} added. It needs review before it counts.`);break}
+    case 'addMaterial':{
+      const id=`EV-${lot.id.split('-')[1]}-S${S.seq++}`,al=alloyOf(lot.declared.grade);
+      const e={id,lotId:lot.id,type:'material',label:'SAMPLE handheld analyser reading (fictional)',source:'Demo sample, added by operator',scope:'3 spot readings on 3 pieces from the top layer',readings:3,pieces:3,allLayers:false,family:lot.declared.family||lot.ai.family,status:'unreviewed',sample:true,at:now()};
+      if(al){e.alloy=al;e.detail=`Readings consistent with ${al} on the 3 pieces tested. Sample record for demonstration; says nothing about untested pieces.`}
+      else e.detail=`Readings consistent with ${e.family} on the 3 pieces tested. Sample record for demonstration; says nothing about untested pieces.`;
+      lot.evidence.push(e);log(lot,`Sample material evidence ${id} added (awaiting scope review)`);toast(`${id} added. Review its scope before it counts.`);break}
+    case 'accept': case 'reject':{
+      const e=lot.evidence.find(x=>x.id===arg);if(!e){toast('Evidence record not found.');break}
+      if(e.lotId!==lot.id){toast('This record belongs to a different lot and cannot support this one.');break}
+      e.status=name==='accept'?'accepted':'rejected';
+      log(lot,`Evidence ${e.id} ${e.status} by operator`+(name==='accept'?` (scope: ${e.scope})`:''));toast(`${e.id} marked ${e.status}.`);break}
+    case 'condOk':
+      if(!lot.condition.trim()){toast('Add condition notes first. A tick cannot replace them.');break}
+      lot.conditionReviewed=true;log(lot,'Condition notes confirmed by operator');toast('Condition notes confirmed.');break;
+    case 'gotoReview': after='review'; break;
+    case 'gotoSamp': S.view='readiness'; after='f-samp'; break;
+    case 'review':{
+      const nm=(hasDom&&document.getElementById('rname')?document.getElementById('rname').value:S.draft.name).trim();
+      const nt=(hasDom&&document.getElementById('rnote')?document.getElementById('rnote').value:S.draft.note).trim();
+      S.draft={name:nm,note:nt};
+      if(!nm||!nt){toast('Enter both a reviewer name and a review note.');break}
+      lot.reviews[b.id]={name:nm,note:nt,at:now(),hash:hashOf(lot,b)};
+      log(lot,`Review recorded by ${nm} for ${b.name}`);
+      toast(isReady(lot,b)?'Review recorded. Lot is ready for buyer review.':'Review recorded. Other requirements are still open.');break}
+    case 'publish':
+      if(!isReady(lot,b)){toast('Cannot publish: not every requirement passes for this buyer.');break}
+      lot.published={buyerId:b.id,hash:hashOf(lot,b),at:now()};ui.flashPublish=true;
+      log(lot,`Published to the local demo exchange as buyer-ready for ${b.name}`);toast('Published to the local demo exchange. Nothing left this browser.');break;
+    case 'export': S.showJson=!S.showJson; if(S.showJson){log(lot,'Passport exported as JSON');after='json'} break;
+    case 'copy':{
+      const txt=JSON.stringify(passport(lot),null,2);
+      try{navigator.clipboard.writeText(txt).then(()=>toast('Passport JSON copied.'),()=>selectJson())}catch(e){selectJson()}
+      return}
+    case 'reset': seed();photos={};ui.prev={};ui.open={};toast('Demo reset to its starting state.');after='top';break;
+    case 'present': S.present=!S.present; if(S.present) after='p-next'; break;
+    case 'slide': S.slide=Math.max(0,Math.min(3,arg));break;
+    case 'guide': S.present=false;S.guide=true;S.active=AL;S.view='intake';toast('Guided demo started. Every review and approval is still yours to click.');after='top';break;
+    case 'hideGuide': S.guide=false;break;
+    default: toast('Unknown action.');
+  }
+  save();render();
+  if(hasDom&&after){
+    if(after==='top') window.scrollTo(0,0);
+    else{const el=document.getElementById(after);if(el){if(after!=='p-next')el.scrollIntoView({block:'center'});const f=document.getElementById({review:'rname','f-samp':'f-samp','p-next':'p-next'}[after]||'');if(f)f.focus()}}
+  }
+}
+function selectJson(){const p=document.getElementById('json');if(!p)return;const r=document.createRange();r.selectNodeContents(p);const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Copy is blocked here. The JSON is selected; press Ctrl/Cmd+C.')}
+function setField(f,v,defer){
+  const lot=L();
+  switch(f){
+    case 'alloySpec': S.alloySpec=v;log(lot,`Castline required alloy changed to ${v}; readiness recomputed`);break;
+    case 'sampling': S.sampling=v;log(lot,`Castline sampling requirement changed to "${SAMPLING[v].label}"; readiness recomputed`);break;
+    case 'family': lot.declared.family=v;log(lot,`Seller declaration edited: family is now ${v}`);break;
+    case 'grade': lot.declared.grade=v.trim();log(lot,`Seller declaration edited: grade is now "${v.trim()||'blank'}"`);break;
+    case 'qtyValue': lot.qty.value=v===''?null:Number(v);log(lot,`Declared quantity edited: ${qtyText(lot.qty)}`);break;
+    case 'qtyUnit': lot.qty.unit=v;log(lot,`Declared unit edited: ${qtyText(lot.qty)}`);break;
+    case 'origin': lot.origin=v.trim();log(lot,'Origin edited');break;
+    case 'condition': lot.condition=v.trim();lot.conditionReviewed=false;log(lot,'Condition notes edited; condition review cleared');break;
+    case 'condReviewed':
+      if(v&&!lot.condition.trim()) toast('Ticked, but there are no notes to review, so this still counts as missing.');
+      lot.conditionReviewed=!!v;log(lot,v?'Condition notes confirmed by operator':'Condition review cleared');break;
+    case 'rname': S.draft.name=v;save();return;
+    case 'rnote': S.draft.note=v;save();return;
+  }
+  save();
+  if(defer&&ui.ptr) ui.pending=true; else render();
+}
+function onPhoto(file){
+  const lot=L();if(!file) return;
+  try{
+    const fr=new FileReader();
+    fr.onload=()=>{photos[lot.id]=fr.result;
+      const id=`EV-${lot.id.split('-')[1]}-P${S.seq++}`;
+      lot.evidence.push({id,lotId:lot.id,type:'photo',label:`Operator photo: ${file.name}`,source:'Uploaded by operator',scope:'One image',status:'unreviewed',at:now(),detail:'Kept in this browser tab only. No model ran on it and no grade or verification was generated.'});
+      log(lot,`Photo ${id} attached (no inference run)`);save();render();toast('Photo attached as a visual record. No grade was generated.')};
+    fr.onerror=()=>toast('That image could not be read. The rest of the demo is unaffected.');
+    fr.readAsDataURL(file);
+  }catch(e){toast('Image preview is not available here. The rest of the demo is unaffected.')}
+}
+
+/* ---------- illustrations (decorative, never evidence) ---------- */
+const bar=(x,y,w,c,c2)=>`<rect x="${x}" y="${y}" width="${w}" height="11" rx="1.5" fill="${c}"/><rect x="${x}" y="${y}" width="11" height="11" rx="1.5" fill="${c2}"/><rect x="${x+3}" y="${y+3}" width="5" height="5" fill="#eef3f7"/>`;
+const ring=(cx,cy,r,c)=>`<ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r*.62}" fill="none" stroke="${c}" stroke-width="3.4"/>`;
+const ART={
+  [AL]:`<rect width="120" height="90" fill="#e3ebf2"/><rect y="70" width="120" height="20" fill="#cfd9e2"/>`+bar(16,58,84,'#b4c1cd','#8e9dab')+bar(26,46,76,'#c7d2dc','#9aa8b6')+bar(12,34,70,'#aebbc8','#8795a3')+bar(34,22,62,'#d2dbe4','#a3b0bd')+bar(22,10,50,'#bcc8d3','#909eac'),
+  [CU]:`<rect width="120" height="90" fill="#f5e7dc"/><rect y="68" width="120" height="22" fill="#ead3c2"/>`+[30,24,18,12].map((r,i)=>ring(42,46,r,['#8f4a1f','#b9652e','#d98545','#c77436'][i])).join('')+[24,18,12,7].map((r,i)=>ring(84,54,r,['#a4561f','#d98545','#b9652e','#e09a5f'][i])).join(''),
+  [MX]:`<rect width="120" height="90" fill="#e8ecef"/><rect y="68" width="120" height="22" fill="#d6dce1"/><polygon points="12,62 58,50 70,60 24,74" fill="#b9c5d0"/><polygon points="66,26 74,26 74,58 100,58 100,66 66,66" fill="#66727f"/><rect x="18" y="22" width="40" height="11" rx="5.5" fill="#c9743a"/><rect x="18" y="22" width="9" height="11" rx="4.5" fill="#a85a26"/><polygon points="88,22 96,18 104,22 104,31 96,35 88,31" fill="#8a94a0"/><circle cx="96" cy="26.5" r="3.2" fill="#e8ecef"/><rect x="80" y="72" width="26" height="8" rx="1.5" fill="#c6a443"/><circle cx="40" cy="44" r="4.5" fill="#7d8894"/>`
+};
+function thumb(lot,size){
+  return `<figure class="thumb ${size||''}"><svg viewBox="0 0 120 90" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustrative image of ${esc(lot.title)}. Not a photograph of this lot.">${ART[lot.id]}</svg>${size==='xs'?'':'<figcaption>Illustrative image</figcaption>'}</figure>`;
+}
+
+/* ---------- views ---------- */
+const CHECK='<svg viewBox="0 0 16 16" class="ck" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const GLYPH={pass:CHECK,miss:'!',fail:'✕',sim:'◇',neutral:'·'};
+const pill=(s,t)=>`<span class="pill ${s}">${GLYPH[s]} ${esc(t)}</span>`;
+const stLabel={pass:'Pass',miss:'Missing',fail:'Fail'};
+const firstSentence=s=>{const m=String(s).match(/^(.*?[.!?])(\s|$)/);return m?m[1]:s};
+const idify=s=>esc(s).replace(/\b(EV-[A-Z0-9]+-[A-Z0-9]+|LR-[A-Z]+-\d+)\b/g,'<span class="id">$1</span>');
+const det=(k,sum,inner)=>`<details data-k="${k}" ${ui.open[k]?'open':''}><summary>${sum}</summary>${inner}</details>`;
+function lotState(lot){
+  if(!lot.imported) return {s:'neutral',text:'Not imported'};
+  if(pubState(lot)==='live') return {s:'pass',text:'Published'};
+  const o=overall(evaluate(lot,buyerOf(lot)));return {s:o.s,text:o.text};
+}
+function evCard(e,lot){
+  const off=e.lotId!==lot.id;
+  const st=off?pill('neutral','Different lot · not counted'):e.status==='accepted'?pill('pass','Reviewed · accepted'):e.status==='rejected'?pill('fail','Rejected · not counted'):pill('miss','Awaiting review');
+  const acts=off?'':`<div class="row">${e.status!=='accepted'?`<button class="btn small" data-act="accept" data-arg="${e.id}">${e.type==='material'?'Review scope and accept':'Review and accept'}</button>`:''}${e.status!=='rejected'?`<button class="btn small" data-act="reject" data-arg="${e.id}">Reject</button>`:''}</div>`;
+  return `<div class="ev ${off?'off':''}"><header><b>${esc(e.label)}</b>${st}</header>
+    <dl class="kv"><dt>Record</dt><dd class="id">${e.id}</dd><dt>Lot ID</dt><dd class="id">${e.lotId}</dd><dt>Type</dt><dd>${esc(e.type)}${e.sample?' · sample data':''}</dd><dt>Source</dt><dd>${esc(e.source)}</dd><dt>Scope</dt><dd>${esc(e.scope)}</dd>${e.kg?`<dt>Measured</dt><dd>${fmtKg(e.kg)}</dd>`:''}</dl>
+    <p class="note">${esc(e.detail||'')}</p>${acts}</div>`;
+}
+function reviewForm(lot,b,cls){
+  const rv=lot.reviews[b.id],cur=rv&&rv.hash===hashOf(lot,b);
+  return `<section class="${cls||'panel'}" id="review"><h2>Operator review</h2>
+    ${rv?`<p>${cur?pill('pass','Review current'):pill('miss','Review stale')} <b>${esc(rv.name)}</b> · <span class="id">${fmtT(rv.at)}</span><br><span class="note">"${esc(rv.note)}"</span></p>`:`<p class="note">No review recorded for ${esc(b.name)} yet.</p>`}
+    <label class="field">Reviewer name<input id="rname" data-field="rname" value="${esc(S.draft.name)}" placeholder="e.g. A. Rahman"></label>
+    <label class="field">Review note<textarea id="rnote" data-field="rnote" placeholder="What you checked, and against what">${esc(S.draft.note)}</textarea></label>
+    <div><button class="btn" data-act="review">Record review</button></div>
+    <p class="note">A review records that a person looked. It cannot turn a Missing or Fail result into a Pass.</p></section>`;
+}
+function needImport(lot){
+  return `<section class="panel"><h2><span class="id">${lot.id}</span> is not imported yet</h2><p class="note">Import the simulated Node record first.</p><div><button class="btn primary" data-act="nav" data-arg="intake">Go to Node intake</button></div></section>`;
+}
+function vIntake(lot){
+  const acc=lot.evidence.filter(e=>e.lotId===lot.id&&e.status==='accepted');
+  const head=`<div class="head"><div><span class="eyebrow">Node intake</span><h1>Turn material into opportunity.</h1><p>Know what is missing. Show what is supported. Move toward a quote.</p></div>
+    <div class="row">${S.guide?'':`<button class="btn" data-act="guide">Start guided demo</button>`}${lot.imported?`<button class="btn primary" data-act="nav" data-arg="readiness">Check buyer readiness</button>`:`<button class="btn primary" data-act="import">Import Node demo record</button>`}</div></div>`;
+  if(!lot.imported) return head+`<section class="panel"><div class="cols" style="align-items:center"><div style="max-width:300px">${thumb(lot,'lg')}</div><div style="display:flex;flex-direction:column;gap:12px"><h2>Record waiting in Node (simulated)</h2><dl class="kv"><dt>Lot ID</dt><dd class="id">${lot.id}</dd><dt>Description</dt><dd>${esc(lot.title)}</dd><dt>Location</dt><dd>${esc(lot.location)}</dd><dt>Evidence</dt><dd>${lot.evidence.length} record(s) attached</dd></dl><p class="note">A fictional record stored in this page. Nothing is fetched from the real Node prototype.</p></div></div></section>`;
+  return head+`<div class="cols">
+    <section class="panel"><h2>AI suggestion</h2><div>${pill('sim','Simulated inference')}</div>
+      <dl class="kv"><dt>Material family</dt><dd>${esc(lot.ai.family)}</dd><dt>Grade / alloy</dt><dd>No suggestion</dd></dl>
+      <p class="note">A sample result. No model ran on this record or on any uploaded photo. A suggestion is advisory and never counts as evidence.</p></section>
+    <section class="panel"><h2>Seller declaration</h2>
+      <label class="field">Material family<select id="f-family" data-field="family">${FAMILIES.map(f=>`<option ${f===lot.declared.family?'selected':''}>${f}</option>`).join('')}</select></label>
+      <label class="field">Declared grade / alloy<input id="f-grade" data-field="grade" value="${esc(lot.declared.grade)}" placeholder="Not declared"></label>
+      <div class="field">Quantity and unit<div class="inline"><input id="f-qty" type="number" min="0" step="any" data-field="qtyValue" value="${lot.qty.value==null?'':lot.qty.value}" aria-label="Quantity"><select id="f-unit" data-field="qtyUnit" aria-label="Unit"><option ${lot.qty.unit==='kg'?'selected':''}>kg</option><option ${lot.qty.unit==='t'?'selected':''} value="t">t</option></select></div><span>${qtyText(lot.qty)} · 1 t = 1,000 kg</span></div>
+      <label class="field">Origin<input id="f-origin" data-field="origin" value="${esc(lot.origin)}" placeholder="Missing: where did this material come from?"></label>
+      <label class="field">Condition notes<textarea id="f-cond" data-field="condition" placeholder="Missing: describe what was inspected">${esc(lot.condition)}</textarea></label>
+      <label class="check"><input id="f-condok" type="checkbox" data-field="condReviewed" ${lot.conditionReviewed?'checked':''}> <span>Operator has reviewed these condition notes</span></label>
+      <p class="note">Any edit recomputes readiness and makes an earlier review stale.</p></section>
+    <section class="panel"><h2>Reviewed evidence</h2>
+      ${acc.length?acc.map(e=>`<div class="ev"><header><b>${esc(e.label)}</b>${pill('pass','Accepted')}</header><span class="id">${e.id}</span><span class="note">Scope: ${esc(e.scope)}</span></div>`).join(''):`<p class="note">Nothing reviewed yet. Evidence moves here only after a person accepts it for this lot.</p>`}</section></div>
+    <section class="panel"><h2>Evidence attached to this record</h2><div class="evgrid">${lot.evidence.map(e=>evCard(e,lot)).join('')}</div>
+      <div class="upload"><label class="field" style="max-width:420px">Uploaded inspection photo (optional, stays in this tab)<input id="photo" type="file" accept="image/*"></label>
+      ${photos[lot.id]?`<img src="${photos[lot.id]}" alt="Uploaded inspection photo"><p class="note">Operator upload, shown as received. It does not produce a grade, an alloy or a verification.</p>`:`<p class="note">Uploads appear here, separate from the illustrative thumbnails used elsewhere.</p>`}</div></section>`;
+}
+function vReadiness(lot){
+  const b=buyerOf(lot);
+  if(!lot.imported) return `<div class="head"><div><span class="eyebrow">Buyer readiness</span><h1>Ready for which buyer?</h1></div></div>`+needImport(lot);
+  const rs=evaluate(lot,b),o=overall(rs),prev=ui.prev[lot.id],cur={};
+  rs.forEach(r=>cur[r.key]=r.status);
+  const ch=r=>!prev||prev[r.key]===r.status?'':r.status==='pass'?'just-pass':'changed';
+  ui.prev[lot.id]=cur;
+  const next=o.s==='pass'?null:rs.find(r=>r.status!=='pass'&&r.action)||rs.find(r=>r.status!=='pass');
+  const flash=ui.flashBuyer;ui.flashBuyer=false;
+  const P=b.alloy?`<div class="cols"><label class="field">Required alloy<select id="f-spec" data-field="alloySpec">${['6061','6063','5052'].map(a=>`<option ${a===b.alloy?'selected':''}>${a}</option>`).join('')}</select></label>
+      <label class="field">Accepted sampling scope<select id="f-samp" data-field="sampling">${Object.keys(SAMPLING).map(k=>`<option value="${k}" ${k===b.sampling?'selected':''}>${SAMPLING[k].label}</option>`).join('')}</select></label></div>
+      <p class="note">An operator accepting a record confirms the record and its stated scope. Whether that scope is enough is the buyer's call. The demo policy is fictional and covers preliminary quote review only. It is not whole-lot certification or an industry standard.</p>`:'';
+  return `<div class="head"><div><span class="eyebrow">Buyer readiness</span><h1>Ready for which buyer?</h1></div></div>
+  <div class="left"><span class="lbl">Choose a buyer</span>
+    <div class="buyers" role="group" aria-label="Buyer profile">${Object.values(buyers()).map(x=>`<button class="buyer ${x.id===b.id&&flash?'flash':''}" data-act="buyer" data-arg="${x.id}" aria-pressed="${x.id===b.id}"><strong>${esc(x.name)}</strong><small>${esc(x.kind)} · fictional</small></button>`).join('')}</div>
+    <p class="note">Illustrative buyer policies written for this demo, not industry standards. ${b.alloy?'This buyer needs evidence for a specific alloy.':'This buyer does not need an exact alloy grade.'} Weight tolerance ${b.tol}%.</p>${P}</div>
+  <div class="hero"><div class="left">
+    ${rs.map(r=>`<article class="req ${r.status} ${ch(r)}"><div class="req-top"><span class="ico">${GLYPH[r.status]}</span><h3>${esc(r.label)}</h3>${pill(r.status,stLabel[r.status])}</div>
+      <p class="short">${idify(firstSentence(r.reason))}</p>
+      <div class="meta"><div><span class="lbl">Evidence source</span>${r.evidence.length?r.evidence.map(idify).join('<br>'):esc(r.src)}</div>
+        <div><span class="lbl">Action needed</span>${r.status==='pass'?'None':r.action?`<button class="btn small" data-act="${r.action.act}" data-arg="${r.action.arg||''}">${esc(r.action.label)}</button>`:esc(r.todo||'')}</div></div>
+      ${det('req:'+r.key,'Details',`<dl class="kv"><dt>Expected</dt><dd>${esc(r.expected)}</dd><dt>Current</dt><dd>${esc(r.claim)}</dd><dt>Reason</dt><dd>${idify(r.reason)}</dd></dl>`)}</article>`).join('')}
+  </div>
+  <div class="right">
+    <section class="summary ${o.s}"><span class="lbl">Readiness for ${esc(b.name)}</span>
+      <div class="state"><i></i>${o.text}</div>
+      <div class="count">${o.n.pass} of ${rs.length}<small>requirements satisfied</small></div>
+      <div class="segs" role="img" aria-label="${o.n.pass} pass, ${o.n.miss} missing, ${o.n.fail} fail">${rs.map(r=>`<i class="${r.status} ${ch(r)}" title="${esc(r.label)}: ${stLabel[r.status]}"></i>`).join('')}</div>
+      <p class="note">Checklist completion for this buyer only. It is not a quality grade or a score of the material.</p>
+      <div><span class="lbl" style="margin-bottom:6px">Next action</span>${o.s==='pass'?`<button class="btn primary big" data-act="nav" data-arg="passport">Open evidence passport</button>`:next.action?`<button class="btn primary big" data-act="${next.action.act}" data-arg="${next.action.arg||''}">${esc(next.action.label)}</button>`:`<p>${esc(next.todo||'')}</p>`}</div>
+      ${o.s==='pass'?`<p class="note">Satisfied means the checklist is complete. It is not certified purity or a promise the buyer will accept.</p>`:o.s==='fail'?`<p class="note">A mismatch is contradicted by the record. More paperwork will not fix it.</p>`:''}
+    </section>
+    ${reviewForm(lot,b)}
+  </div></div>`;
+}
+function vPassport(lot){
+  const b=buyerOf(lot);
+  if(!lot.imported) return `<div class="head"><div><span class="eyebrow">Evidence passport</span><h1>Evidence passport</h1></div></div>`+needImport(lot);
+  const rs=evaluate(lot,b),o=overall(rs);
+  return `<article class="doc">
+  <header class="doc-head">${thumb(lot,'lg')}<div><span class="lbl">Evidence passport · synthetic demo data</span><h1>${esc(lot.title)}</h1>
+    <div class="facts"><div><span class="lbl">Lot ID</span><span class="id">${lot.id}</span></div><div><span class="lbl">Buyer</span>${esc(b.name)} (fictional)</div><div><span class="lbl">Checklist</span>${o.n.pass} of ${rs.length} satisfied</div><div><span class="lbl">Status</span>${pill(o.s,o.text)}</div></div></div></header>
+  <section class="doc-sec"><div class="row"><button class="btn primary" data-act="nav" data-arg="listing">Preview Oxide listing</button><button class="btn" data-act="export">${S.showJson?'Hide passport JSON':'Export passport as JSON'}</button><button class="btn" data-act="nav" data-arg="readiness">Requirement details</button></div>
+    ${S.showJson?`<pre class="json" id="json" tabindex="0">${esc(JSON.stringify(passport(lot),null,2))}</pre><div><button class="btn small" data-act="copy">Copy JSON</button></div>`:''}</section>
+  <section class="doc-sec"><h2>Material claims and sources</h2><div class="scroll"><table><tr><th>Claim</th><th>Value</th><th>Source</th></tr>
+    <tr><td>Material family</td><td>${esc(lot.declared.family)}</td><td>Seller declaration</td></tr>
+    <tr><td>Family suggestion</td><td>${esc(lot.ai.family)}</td><td>${pill('sim','Simulated inference')}</td></tr>
+    <tr><td>Grade / alloy</td><td>${esc(lot.declared.grade||'Not declared')}</td><td>Seller declaration</td></tr>
+    <tr><td>Weight</td><td>${qtyText(lot.qty)}</td><td>Seller declaration</td></tr>
+    <tr><td>Origin</td><td>${esc(lot.origin||'Not recorded')}</td><td>Seller statement</td></tr>
+    <tr><td>Condition</td><td>${esc(lot.condition||'Not recorded')}</td><td>${lot.conditionReviewed?'Operator reviewed':'Not yet reviewed'}</td></tr></table></div></section>
+  <section class="doc-sec"><h2>Requirement results for this buyer</h2><div class="scroll"><table>${rs.map(r=>`<tr><td>${esc(r.label)}</td><td>${pill(r.status,stLabel[r.status])}</td><td>${idify(firstSentence(r.reason))}</td></tr>`).join('')}</table></div></section>
+  <section class="doc-sec"><h2>Evidence summary</h2><div class="evgrid">${lot.evidence.map(e=>evCard(e,lot)).join('')}</div>
+    <div class="row"><button class="btn" data-act="addWeight">Add sample weight evidence</button><button class="btn" data-act="addMaterial">Add sample material evidence</button></div>
+    <p class="note">Sample records are fictional and labelled as such. A record supports only the lot whose ID it carries.</p></section>
+  ${reviewForm(lot,b,'doc-sec')}
+  <section class="doc-sec"><h2>Sampling and other limitations</h2><ul class="plain">${limitations(lot).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></section>
+  <section class="doc-sec"><h2>Event history</h2><p class="note">A local prototype log kept in this browser. It is not tamper-proof provenance.</p>
+    <ul class="timeline">${lot.events.map(e=>`<li><time>${fmtT(e.at)}</time>${idify(e.text)}</li>`).join('')||'<li class="note">No events yet.</li>'}</ul></section>
+  </article>`;
+}
+function vListing(lot){
+  const b=buyerOf(lot);
+  if(!lot.imported) return `<div class="head"><div><span class="eyebrow">Oxide listing</span><h1>Oxide listing preview</h1></div></div>`+needImport(lot);
+  const rs=evaluate(lot,b),o=overall(rs),ready=o.s==='pass',ps=pubState(lot),pop=ui.flashPublish;ui.flashPublish=false;
+  const lstate=ps==='live'?pill('pass',`Published · buyer-ready for ${buyers()[lot.published.buyerId].name}`):ps==='withdrawn'?pill('miss','Withdrawn · changed after publishing'):o.s==='pass'?pill('neutral','Draft · ready, not published'):o.s==='fail'?pill('fail','Draft · requirement mismatch'):pill('miss','Draft · missing evidence');
+  const imp=Object.values(S.lots).filter(x=>x.imported);
+  return `<div class="head"><div><span class="eyebrow">Oxide listing</span><h1>Oxide listing preview</h1></div>
+    <button class="btn primary" data-act="publish" ${ready&&ps!=='live'?'':'disabled'}>Publish buyer-ready demo listing</button></div>
+  ${ps==='live'?`<div class="confirm ${pop?'pop':''}"><span class="ico">${CHECK}</span><span>Published to the local demo exchange for ${esc(buyers()[lot.published.buyerId].name)}. Nothing left this browser.</span></div>`:`<p class="note">${ready?'All requirements pass and the review is current. Publishing writes only to the local demo exchange below.':`Publishing is locked: ${o.n.miss} missing and ${o.n.fail} failing requirement(s) for ${esc(b.name)}. The draft below can be previewed at any stage.`}</p>`}
+  <article class="market ${pop?'pop':''}">${thumb(lot,'lg')}<div class="info">
+    <div class="row" style="justify-content:space-between"><span class="id">${lot.id}</span>${lstate}</div>
+    <h2>${esc(lot.title)}</h2>
+    <div class="chips"><span>${esc(lot.declared.family)}</span><span>${esc(lot.declared.grade||'Grade not declared')}${lot.declared.grade?' · seller-declared':''}</span><span>${qtyText(lot.qty)}</span><span>${esc(lot.location)}</span></div>
+    <dl class="kv"><dt>Pricing</dt><dd>On request <span class="note">(no price data in this prototype)</span></dd><dt>Condition</dt><dd>${esc(lot.condition||'Not recorded')}</dd><dt>Origin</dt><dd>${esc(lot.origin||'Not recorded')}</dd>
+      <dt>Evidence</dt><dd>${lot.evidence.filter(e=>e.lotId===lot.id&&e.status==='accepted').length} reviewed record(s). Checked against ${esc(b.name)}: ${o.n.pass} of ${rs.length} requirements satisfied.</dd></dl>
+    <div class="row"><button class="btn" data-act="nav" data-arg="passport">View evidence</button></div>
+    <p class="note">A mock-up of how an Oxide listing could carry the passport. Not connected to the real Oxide prototype.</p></div></article>
+  <section class="panel" id="exchange"><h2>Local demo exchange</h2><p class="note">Lives in this browser only. Pending and mismatched lots are shown as such, never as ready.</p>
+    <div class="scroll"><table><tr><th>Lot</th><th>Material</th><th>Quantity</th><th>State</th></tr>${imp.map(x=>{const xo=overall(evaluate(x,buyerOf(x))),xp=pubState(x);
+      return `<tr><td><span class="id">${x.id}</span><br>${esc(x.title)}</td><td>${esc(x.declared.family)}</td><td>${qtyText(x.qty)}</td><td>${xp==='live'?pill('pass','Published · '+buyers()[x.published.buyerId].name):xp==='withdrawn'?pill('miss','Withdrawn · changed after publishing'):xo.s==='pass'?pill('neutral','Ready, not published'):xo.s==='fail'?pill('fail','Requirement mismatch'):pill('miss','Missing evidence')}</td></tr>`}).join('')}</table></div></section>`;
+}
+function vPresent(){
+  const a=S.lots[AL],g=evaluate(a,buyers().general),c=evaluate(a,buyers().alloy),n=rs=>rs.filter(r=>r.status==='pass').length;
+  const slides=[
+   ['The customer problem',`<span class="eyebrow">Hypothesis · to validate with a pilot yard</span><h2>The lot is identified. The buyer still can't evaluate it.</h2>
+     <div class="trio"><div><b>Incomplete</b><span>Evidence a buyer needs was never captured.</span></div><div><b>Scattered</b><span>Tickets, photos and notes live in different places.</span></div><div><b>Not buyer-specific</b><span>Each buyer needs different proof.</span></div></div>`,
+    `<p>Primary user: a scrap-yard operator or broker. Secondary user: the buyer reviewing a lot. Scope is recovered scrap, not aircraft-part reuse or airworthiness.</p><p>We did not observe a buyer-specific evidence handoff in the screens reviewed; this is a hypothesis to validate with Maleo.</p><p>I have not interviewed a yard or a buyer. The first job of the pilot is to learn whether this problem is real and how often it occurs.</p>`],
+   ['How Node, LotReady and Oxide connect',`<span class="eyebrow">Turn material into opportunity.</span><h2>One lot ID, from identification to listing.</h2>
+     <div class="chain"><div><b>Node</b><span>Identify, verify, sort, grade.</span></div><div class="arrow">→</div><div class="me"><b>LotReady</b><span>Check evidence against one buyer's requirements.</span></div><div class="arrow">→</div><div><b>Oxide</b><span>List, quote, broker.</span></div></div>
+     <div class="rail-id">shared lot identifier · ${AL}</div>`,
+    `<p>Seen in the Aerotrack prototype: an aircraft-lifecycle dashboard, recovered-component records, and a scan screen that says classification runs locally and AI suggestions need operator verification.</p><p>Seen in the Maleo Connect prototype: lots with grade, quantity, price and location, quote buttons, a listing form, and inventory described as verified. These are interface observations, not claims about the backend.</p>
+     <p><b>Proposed architecture, not implemented:</b></p><ul><li>A shared lot identifier connects Node records and Oxide listings.</li><li>A JavaScript application and API manages the workflow.</li><li>PostgreSQL stores lots, requirements, evidence metadata and review events.</li><li>Object storage holds evidence files.</li><li>An optional Python / PyTorch service can supply model suggestions.</li><li>Deterministic rules evaluate requirements; qualified people review evidence.</li></ul>`],
+   ['Same lot, two buyers',`<span class="eyebrow">The key demonstration</span><h2>Same lot. Two buyers. Different answers.</h2>
+     <div class="duo"><div class="side"><b>General recycler</b><div class="big">${n(g)} of ${g.length}</div><span class="note">requirements satisfied right now</span><ul><li>Category, weight, origin, condition, review</li><li>No exact alloy needed</li></ul></div>
+     <div class="mid">${thumb(a,'lg')}<div class="id" style="margin-top:8px;color:var(--teal)">${AL}</div></div>
+     <div class="side"><b>Alloy-specific buyer</b><div class="big">${n(c)} of ${c.length}</div><span class="note">requirements satisfied right now</span><ul><li>Everything above</li><li>Alloy evidence, reviewed</li><li>Sampling scope the buyer accepts</li></ul></div></div>`,
+    `<p>These counts are live from the demo state. They show checklist completion, not material quality.</p><p>Trade-offs: no universal trust score, so it is less glanceable but honest about who a lot is ready for. Rules are deterministic and people review evidence; the model only suggests. Buyers must state their requirements up front. Operator review and scope sufficiency are separate, so three spot readings pass only when the buyer's own policy accepts that scope.</p><p>Both buyer policies are fictional and illustrative, not industry standards.</p>`],
+   ['Pilot test and success measures',`<span class="eyebrow">Exploratory pilot</span><h2>One yard. One week. 10 to 20 lots.</h2>
+     <div class="trio"><div><b>Compare</b><span>Today's manual workflow against LotReady, on comparable lots.</span></div><div><b>Measure</b><span>Prep time. Follow-up requests. Missing evidence. Wrong readiness calls. Buyer says "enough to quote".</span></div><div class="me"><b>Decide</b><span>Continue, revise the evidence requirements, or pivot.</span></div></div>`,
+    `<p>About three operators and two buyer representatives. Alternate which workflow comes first where practical, to reduce learning effects. Incorrect readiness decisions are checked by an experienced reviewer.</p><p>Proposed targets, not results: fewer clarification requests per lot than the manual workflow; no lot shown as ready that the experienced reviewer would block; buyers accept most passports as enough to quote. Nothing has been measured yet.</p><p>Continue if buyers quote from passports with fewer follow-ups. Revise if buyers ask for things the checklist lacks or ignore things it demands. Pivot if buyers say evidence is not what holds up a quote. Ten to twenty lots is a small sample and will not be statistically conclusive.</p>`]
+  ];
+  const s=slides[S.slide];
+  return `<div class="present" role="dialog" aria-modal="true" aria-label="Presentation">
+    <div class="p-top"><div class="brand"><b>Lot<i>Ready</i></b><span>A Maleo workflow concept</span></div><span class="badge">Demo • synthetic data</span><span class="grow"></span>
+      <div class="tabs">${slides.map((x,i)=>`<button data-act="slide" data-arg="${i}" aria-pressed="${i===S.slide}" aria-label="Slide ${i+1}: ${x[0]}"></button>`).join('')}</div>
+      <button class="btn ghost small" data-act="present">Exit (Esc)</button></div>
+    <section class="slide">${s[1]}${det('note:'+S.slide,'Speaker notes',s[2])}</section>
+    <div class="p-bot"><button class="btn ghost" id="p-prev" data-act="slide" data-arg="${S.slide-1}" ${S.slide===0?'disabled':''}>Previous</button><button class="btn primary" id="p-next" data-act="slide" data-arg="${S.slide+1}" ${S.slide===3?'disabled':''}>Next</button>
+      <span class="note">${S.slide+1} of 4 · arrow keys to move</span><span class="grow"></span><button class="btn ghost" data-act="guide">Start guided demo</button></div></div>`;
+}
+function track(){
+  const a=S.lots[AL],m=S.m,on=S.active===AL&&a.imported,lot=L();
+  m.i=a.imported; if(on&&S.view==='readiness') m.b=true;
+  m.w=a.evidence.some(e=>e.type==='weight'&&e.lotId===AL&&e.status==='accepted')&&!!a.reviews.general;
+  if(a.imported&&isReady(a,buyers().general)) m.g=true;
+  if(on&&a.buyerId==='alloy'){m.s=true;if(S.view==='readiness')m.x=true}
+  m.e=a.evidence.some(e=>e.type==='material'&&e.alloy&&e.lotId===AL&&e.status==='accepted');
+  m.p=pubState(a)==='live';
+  if(lot.imported&&S.view==='passport'&&isReady(lot,buyerOf(lot))) lot.pp=true;
+}
+const GUIDE=[['i','Import the aluminium record'],['b','Open Buyer readiness and see what blocks it'],['w','Add weight evidence, review it, confirm condition, record a review'],['g','Ready for the general recycler'],['s','Select Castline Alloys'],['x','See the new alloy and sampling gaps'],['e','Add material evidence and review its sampling scope'],['p','Record a fresh review, open Oxide listing and publish']];
+function render(){
+  track(); if(!hasDom) return;
+  const lot=L(),b=buyerOf(lot),keep=document.activeElement&&document.activeElement.id,sc=document.querySelector('.steps');
+  const ready=lot.imported&&isReady(lot,b),st=lotState(lot);
+  const done={intake:lot.imported,readiness:ready,passport:ready&&!!lot.pp,listing:pubState(lot)==='live'};
+  const NAV=[['intake','Node intake'],['readiness','Buyer readiness'],['passport','Evidence passport'],['listing','Oxide listing']];
+  const key=S.view+S.active,enter=ui.prevKey!==key;ui.prevKey=key;
+  const body={intake:vIntake,readiness:vReadiness,passport:vPassport,listing:vListing}[S.view]||vIntake;
+  const gi=GUIDE.findIndex(g=>!S.m[g[0]]);
+  document.getElementById('app').innerHTML=`<header class="top"><div class="top-row"><div class="brand"><b>Lot<i>Ready</i></b><span>A Maleo workflow concept</span></div><span class="badge">Demo • synthetic data</span><span class="grow"></span>
+      <button class="btn primary small" data-act="present">Present</button><button class="btn ghost small" data-act="reset">Reset demo</button></div>
+    <nav aria-label="Workflow"><ol class="steps">${NAV.map((n,i)=>`<li class="${done[n[0]]?'done':''}"><button data-act="nav" data-arg="${n[0]}" ${S.view===n[0]?'aria-current="step"':''}><span class="dot">${done[n[0]]?CHECK:i+1}</span>${n[1]}</button></li>`).join('')}</ol></nav></header>
+  ${S.guide?`<div class="guide"><b>Guided demo</b><span class="pips" aria-hidden="true">${GUIDE.map(g=>`<i class="${S.m[g[0]]?'on':''}"></i>`).join('')}</span><span>${gi<0?'All 8 steps complete. Reset the demo to run it again.':`Step ${gi+1} of 8: ${GUIDE[gi][1]}`}</span><span class="grow"></span><button class="btn small" data-act="hideGuide">Hide</button></div>`:''}
+  <div class="shell"><aside class="inv" aria-label="Inventory"><span class="lbl">Inventory · fictional lots</span>
+    <div class="inv-list">${Object.values(S.lots).map(x=>{const xs=lotState(x);return `<button class="lotcard" data-act="lot" data-arg="${x.id}" aria-pressed="${x.id===lot.id}">${thumb(x)}<span><span class="id">${x.id}</span><strong>${esc(x.title)}</strong>${pill(xs.s,xs.text)}</span></button>`}).join('')}</div>
+    <p class="note">Thumbnails are illustrations, not photographs of the lots.</p></aside>
+  <main class="work ${enter?'enter':''}">
+    <div class="strip">${thumb(lot,'xs')}<div><span class="lbl">Lot ID</span><span class="v id">${lot.id}</span></div><div><span class="lbl">Material</span><span class="v">${esc(lot.declared.family)}</span></div><div><span class="lbl">Quantity</span><span class="v">${qtyText(lot.qty)}</span></div><div><span class="lbl">Buyer</span><span class="v">${esc(b.name)}</span></div><div><span class="lbl">Readiness</span>${pill(st.s,st.text)}</div></div>
+    ${body(lot)}</main></div>
+  ${S.present?vPresent():''}`;
+  const ns=document.querySelector('.steps');if(sc&&ns)ns.scrollLeft=sc.scrollLeft;
+  if(keep){const el=document.getElementById(keep);if(el&&el.type!=='file')try{el.focus({preventScroll:true})}catch(e){}}
+}
+function init(){
+  if(!load()) seed();
+  document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(!t||t.disabled)return;const a=t.dataset.arg;act(t.dataset.act,t.dataset.act==='slide'?Number(a):a)});
+  document.addEventListener('change',e=>{const t=e.target;if(t.id==='photo'){onPhoto(t.files&&t.files[0]);return}
+    if(t.dataset&&t.dataset.field)setField(t.dataset.field,t.type==='checkbox'?t.checked:t.value,t.tagName==='TEXTAREA'||(t.tagName==='INPUT'&&t.type!=='checkbox'))});
+  document.addEventListener('input',e=>{const f=e.target.dataset&&e.target.dataset.field;if(f==='rname'||f==='rnote')setField(f,e.target.value)});
+  document.addEventListener('toggle',e=>{const k=e.target.dataset&&e.target.dataset.k;if(k)ui.open[k]=e.target.open},true);
+  document.addEventListener('pointerdown',()=>{ui.ptr=true});
+  const up=()=>setTimeout(()=>{ui.ptr=false;if(ui.pending){ui.pending=false;render()}},0);
+  document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);
+  document.addEventListener('keydown',e=>{if(!S.present||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName||''))return;
+    if(e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();act('slide',S.slide+1)}
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();act('slide',S.slide-1)}
+    else if(e.key==='Escape'){e.preventDefault();act('present')}});
+  render();
+}
+if(hasDom) init(); else globalThis.LR={seed,act,setField,evaluate,overall,buyers,pubState,passport,isReady,toKg,get S(){return S}};
+</script>
+
+</body>
+</html>
